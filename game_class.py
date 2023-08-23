@@ -25,18 +25,29 @@ class Game:
     def __init__(self, window_width=800, window_height=800):
         #this method is called when the game object is created, it does all of the important initialising.
         pygame.init()
+
+        #setting the window width and window height
         self.window_width = window_width
         self.window_height = window_height
+
+        #creating the screen object.
         self.screen = pygame.display.set_mode((self.window_width, self.window_height))
+
+        #loading the font that will be used.
         self.font = pygame.font.Font('utilities/cunia.ttf', 30)
+        #creating the clock object
         self.clock = pygame.time.Clock()
 
+
         self.running = True
+        #initialise for the main menu.
         self.initialise_main_menu()
 
+        #creating the UI object then adding each button to it
         self.ui = Container(500, 100)
-        
+        #adding the header with width 200 and height 20
         self.ui.add_object(Header(200, 20, "MENU", self.ui.move_ui, "#111111"))
+        #adding a button with width 200 and height 50
         self.ui.add_object(Button(200, 50, "BUTTON", self.test))
         self.ui.add_object(Button(200, 50, "BUTTON2", self.test))
 
@@ -69,12 +80,12 @@ class Game:
         #returning whether the mouse overlaps with the rect given in the argument.
         return (pos[0] < rect.right and rect.left < pos[0] and rect.top < pos[1] and rect.bottom > pos[1])
     def draw_graph(self, function, width=700, height=700):
+        #drawing the graph.
         self.state = "GRAPHS"
-        self.data_list = data_point_gen(function, -10, 10, 0.25, width, height, self.window_width, self.window_height)
+        container = data_point_gen(function, -10, 10, 0.25, width, height)
         self.screen.fill("BLACK")
-        pygame.draw.lines(self.screen, 'green', False, self.data_list)
-        pygame.draw.line(self.screen, 'white', ((self.window_width - width) // 2, self.window_height // 2), ((self.window_width + width) // 2, self.window_height // 2))
-        pygame.draw.line(self.screen, 'white', (self.window_width // 2, (self.window_height - height) // 2), (self.window_width // 2, (self.window_height + height) // 2))
+        w, h = container.get_size()
+        self.screen.blit(container, ((self.window_width - w) // 2, (self.window_height - h) // 2))
     def main(self):
         #this is the game loop.
         while self.running:

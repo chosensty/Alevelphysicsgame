@@ -1,5 +1,5 @@
 import numpy as np
-
+import pygame
 #this function can evaluate expressions (using recursion)
 def eval_exp(exp):
     #making a copy of the expression
@@ -97,7 +97,7 @@ def eval_exp(exp):
 
 
 #generating the coordinates of the graph
-def data_point_gen(exp, minimum=0, maximum=10, step=1, width=800, height=800, window_width=800, window_height=800):
+def data_point_gen(exp, minimum=0, maximum=10, step=1, width=800, height=800):
     #getting rid of any spaces
     expression = exp.replace(" ", "")
     #finding the number of coordinates in the graph
@@ -134,10 +134,15 @@ def data_point_gen(exp, minimum=0, maximum=10, step=1, width=800, height=800, wi
         ]))
     
     #creating the translation matrix to adjust the coordinates such that they start at the correct origin
-    translation_matrix = np.full((length, 2), (window_width // 2, 400))
+    translation_matrix = np.full((length, 2), (width // 2, height // 2))
 
 
     #perform the transformation and then the translation, then return the coordinate list.
     initial_list = np.matmul(transformation_matrix, initial_list).transpose().astype(int)
     initial_list = np.add(initial_list, translation_matrix)
-    return list(map(tuple, initial_list))
+    data_list = list(map(tuple, initial_list))
+    surface = pygame.Surface((width, height))
+    pygame.draw.lines(surface, 'green', False, data_list)
+    pygame.draw.line(surface, 'white', ((width - width) // 2, height // 2), ((width + width) // 2, height // 2))
+    pygame.draw.line(surface, 'white', (width // 2, (height - height) // 2), (width // 2, (height + height) // 2))
+    return surface
