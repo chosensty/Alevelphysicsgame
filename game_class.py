@@ -1,9 +1,10 @@
 import pygame
 import math
 from particle import Particle
-from UI import Container, Button, Header
+from UI import Container, Button, Header, Slider
 from particle_sim_functions import collision_handling
 from graphing_functions import data_point_gen
+from electricity import Electricity
 class Game:
     def test(self):
         print("HELLOWORLD")
@@ -11,13 +12,21 @@ class Game:
     def initialise_main_menu(self):
         #change the state to main menu
         self.state = "MAINMENU"
+        #creating the UI object then adding each button to it
+        #adding the header with width 200 and height 20
+        self.ui.reset()
+        self.ui.add_object(Header(200, 30, "MENU", self.ui.move_ui, "H","#111111"))
+        #adding a button with width 200 and height 50
+        self.ui.add_object(Button(200, 50, "BUTTON", self.test, "B1"))
+        self.ui.add_object(Button(200, 50, "BUTTON2", self.test, "B2"))
 
         self.options = []
         #every text that must be rendered is added to a list
         self.texts = [
                 [self.font.render("PARTICLE COLLISION SIMULATION", True, 'white'), "PARTICLE COLLISION SIMULATION"],
                 [self.font.render("GRAPHS", True, 'white'), "GRAPHS"],
-                [self.font.render("ELECTRICITY", True, 'white'), "ELECTRICITY"]
+                [self.font.render("ELECTRICITY", True, 'white'), "ELECTRICITY"],
+                [self.font.render("MOMENTS", True, 'white'), "MOMENTS"],
         ]
         for i in range(0, len(self.texts)):
             #adding the rectangle of every text that must be rendered to the list.
@@ -26,6 +35,7 @@ class Game:
         #this method is called when the game object is created, it does all of the important initialising.
         pygame.init()
 
+        self.ui = Container(500, 100)
         #setting the window width and window height
         self.window_width = window_width
         self.window_height = window_height
@@ -38,22 +48,17 @@ class Game:
         #creating the clock object
         self.clock = pygame.time.Clock()
 
-
         self.running = True
         #initialise for the main menu.
         self.initialise_main_menu()
 
-        #creating the UI object then adding each button to it
-        self.ui = Container(500, 100)
-        #adding the header with width 200 and height 20
-        self.ui.add_object(Header(200, 20, "MENU", self.ui.move_ui, "#111111"))
-        #adding a button with width 200 and height 50
-        self.ui.add_object(Button(200, 50, "BUTTON", self.test))
-        self.ui.add_object(Button(200, 50, "BUTTON2", self.test))
-
-    def initialise_p_col_sim(self, max_speed=100, particle_number=20, particle_radius=30):
+    def initialise_p_col_sim(self, max_speed=100, particle_number=10, particle_radius=30):
         #initialising the particle collision simulation state.
         self.state = "PARTICLE COLLISION SIMULATION"
+        self.ui.reset()
+        self.ui.add_object(Header(200, 30, "Collision Sim", self.ui.move_ui,"H", "#111111"))
+        self.ui.add_object(Slider("speed", 200, 25))
+        self.ui.add_object(Button(200, 20, "Back", self.initialise_main_menu, "B", "#ff4848"))
         self.circle_list = []
         
         #initialising mouse pressed to false.
@@ -73,6 +78,7 @@ class Game:
         self.particle_number = particle_number
         self.particle_radius = particle_radius
         self.deltaTime = 0
+
     #checking for a mouse click
     def mouse_click(self, rect):
         #getting the position of the mouse
@@ -82,17 +88,28 @@ class Game:
     def draw_graph(self, function, width=700, height=700):
         #drawing the graph.
         self.state = "GRAPHS"
-        container = data_point_gen(function, -10, 10, 0.25, width, height)
+        container = data_point_gen(function, -3, 3, 0.25, width, height)
         self.screen.fill("BLACK")
         w, h = container.get_size()
         self.screen.blit(container, ((self.window_width - w) // 2, (self.window_height - h) // 2))
+    def initialise_e_sim(self):
+        self.state = "ELECTRICITY"
+        self.electricity = Electricity()
+        self.ui.reset()
+        self.ui.add_object(Header(200, 30, "Electric Simulator", self.ui.move_ui, "H", "#111111"))
+        self.ui.add_object(Slider("x",200, 25))
+        self.ui.add_object(Slider("y",200, 25))
+        self.ui.add_object(Button(200, 25, "TOGGLE WIRE", self.electricity.toggle_wire, "TOGGLE_WIRE", "#000088"))
+        self.ui.add_object(Button(200, 25, "Add Resistor", self.electricity.add_resistor, "RES"))
+        self.ui.add_object(Button(200, 25, "INSERT COMPONENT", self.electricity.insert_component, "INSERT"))
+        self.ui.add_object(Button(200, 20, "Back", self.initialise_main_menu, "B2", "#ff4848"))
     def main(self):
         #this is the game loop.
         while self.running:
+            #create a black background
+            self.screen.fill("BLACK")
             #if the game is in the main menu state.
             if self.state == "MAINMENU":
-                #create a black background
-                self.screen.fill("BLACK")
                 #blitting all of the texts to the screen.
                 for i in range(0, len(self.texts)):
                     self.screen.blit(self.texts[i][0], self.texts[i][2])
@@ -112,17 +129,18 @@ class Game:
                                     self.initialise_p_col_sim()
                                     break
                                 if self.texts[i][1] == "GRAPHS":
-                                    self.draw_graph("5*x^2")
+                                    self.draw_graph(str(math.e)+"^x")
                                     break
                                 if self.texts[i][1] == "ELECTRICITY":
-                                    self.state = "ELECTRICITY"
-                                    self.circuit_length = 1000
-                                    self.circuit_width = 50
-                                    self.particle_position = 0
+                                    self.initialise_e_sim()
                                     break
+                                if self.texts[i][1] == "MOMENTS":
+                                    self.state = "MOMENTS"
+                                    self.initialise_moments()
                                     
             #if the state is particle collision simulation 
             if self.state == "PARTICLE COLLISION SIMULATION":        
+                
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         self.running = False
@@ -130,26 +148,19 @@ class Game:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         pass
 
+                self.speed = self.ui.query("speed") * self.max_speed
                 #looping through the particles and moving them one by one.
                 for i in range(0, self.particle_number):
                     self.circle_list[i].move(self.deltaTime, self.speed)
 
                 #calling the collision handling function
                 collision_handling(self.deltaTime, self.circle_list)
-                
-                #Setting the screen to black.
-                self.screen.fill("black")
-
                 #looping through the particles and drawing them to the screne.
                 for i in range(0, self.particle_number):
                     pygame.draw.circle(self.screen, 'red', (self.circle_list[i].x, self.circle_list[i].y), self.circle_list[i].radius)
                 
-
-                
-
                 #moving on to the next frame.
                 self.deltaTime = self.clock.tick(60) / 1000
-
 
             #if the state is graphs.
             if self.state == "GRAPHS":
@@ -158,46 +169,28 @@ class Game:
                     if event.type == pygame.QUIT:
                         self.running = False
                         exit()
+            if self.state == "MOMENTS":
+                pass
             #if the state is electricity.
             if self.state == "ELECTRICITY":
-                
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         self.running = False
                         exit()
-
-                #setting the background to solid black.
-                self.screen.fill("BLACK")
-
-                #moving the particle position forward.
-                self.particle_position += 1
-                if self.particle_position >= self.circuit_width:
-                    #ensuring that the particle position remains within appropriate range
-                    #(0 <= particle position < circuit width)
-                    self.particle_position = 0
-                #finding the number of particles per row.
-                particles_per_row = (self.circuit_length // self.circuit_width) // 4
-                #calculating the radius of the particle
-                radius = self.circuit_width // 2
-                #calculating the width of each wire in the circuit
-                width = self.circuit_length // 4
-                #finding the top left coordinates
-                top_left = (self.window_width // 2 - (width // 2) - (radius), self.window_height // 2 - width // 2 - radius)
-
-                #this for loop displays the circles which represent the current in the circuit (this is only here temporarily for testing purposes).
-                for i in range(0, self.circuit_length // self.circuit_width):
-                    offset = ((i%particles_per_row) * self.circuit_width)
-                    if i >= 0 and i < particles_per_row:
-                        x, y  = (math.floor(top_left[0] + radius + self.particle_position + offset), math.floor(top_left[1] + self.circuit_width // 2))
-                    elif i>=particles_per_row and i<particles_per_row * 2:
-                        x, y= (math.floor(top_left[0] + radius + width), math.floor(top_left[1] + self.particle_position + radius + offset))
-                    elif i>=particles_per_row * 2 and i< particles_per_row * 3:
-                        x, y = (math.floor(top_left[0] + width + radius - self.particle_position - offset), math.floor(top_left[1] + radius + width))
-                    elif i>=particles_per_row * 3 and i< particles_per_row * 4:
-                        x, y = (math.floor(top_left[0] + radius), math.floor(top_left[1] - self.particle_position + width + radius - offset))
-                    pygame.draw.circle(self.screen, 'yellow', (x, y), self.circuit_width // 2)
-                self.clock.tick(10)
-                
+            
+                x = self.ui.query("x") * self.window_width
+                y = self.ui.query("y") * self.window_height
+                self.electricity.update_outline(x, y, True)
+                self.electricity.update_container()
+                self.screen.blit(self.electricity.canvas, (0, 0))
+                self.clock.tick(60)
+            
+            if self.state == "MOMENTS":
+                dt = self.clock.tick(60)
+                self.moments_object.run_physics(dt)
+                self.screen.blit(self.moments_object.window, (0, 0))
+       
+            
             pos = pygame.mouse.get_pos()
             self.ui.update(pos, pygame.mouse.get_pressed()[0])
 

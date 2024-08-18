@@ -17,6 +17,11 @@ class Container:
         if self.height != self.container.get_size()[1]:
             self.container = pygame.Surface((self.width, self.height))
         return self.height
+    def query(self, label):
+        for object in self.objects:
+            if object.label == label:
+                return object.query()
+        return "not found"
         
     def update_container(self):
         y = 0
@@ -49,13 +54,24 @@ class Container:
         rel_mouse_cords = [mouse_cords[0] - self.x, mouse_cords[1] - self.y]
         
         y = 0
+        if not mouse_state and self.state == "active":
+            self.state = "inactive"
         for i in range(0, len(self.objects)):
-            rel_mouse_cords[1] = mouse_cords[1] - self.y - y
             object = self.objects[i]
-            object.update(rel_mouse_cords, mouse_state)
-            object.set_height()
-            y += object.height
+            if self.state == "active" and object.state == "active" or self.state == "inactive":
+                rel_mouse_cords[1] = mouse_cords[1] - self.y - y
+                object.update(rel_mouse_cords, mouse_state)
+                y += object.height
+                if object.state == "active":
+                    self.state = "active"
+                    self.active_object = object
         self.update_container()
+    def reset(self):
+        self.objects = []
+        self.offset = [0, 0]
+        self.height = 0
+
+
 
         
     def __init__(self, init_x, init_y, window_width=800, window_height=800, width = 200, bg_color="#111111", button_color="#282828", text_color="#ffffff"):
@@ -70,6 +86,7 @@ class Container:
         self.button_color = "#282828"
         self.text_color = "#ffffff"
         self.move_bool = False
+        self.state = "inactive"
         self.height = 0
         self.width = width
 
@@ -77,9 +94,10 @@ class Container:
 class Button(Container):
     def set_height(self):
         return self.height
-    def __init__(self, width, height, string, command, bg_color="#282828", text_color="#ffffff", border_color="#ffffff"):
+    def __init__(self, width, height, string, command, label,bg_color="#282828", text_color="#ffffff", border_color="#ffffff"):
         self.bg_color = bg_color
         self.width = width
+        self.label = label
         self.height = height
         self.function = command
         self.container = pygame.Surface((width, height))
@@ -183,22 +201,38 @@ class Header(Option):
                 self.state = "inactive"
             return -1
 '''
+def check_mouse_click(mouse_x, mouse_y, rect_x, rect_y, rect_width, rect_height):
+    return mouse_x > rect_x and mouse_x < rect_x + rect_width and mouse_y > rect_y and mouse_y < rect_y + rect_height
+
+
+
 #slider class
-class Slider:
+class Slider(Container):
+    def set_height(self):
+        return self.height
+    def query(self):
+        return self.get_percentage()
     #called upon initialising
-    def __init__(self, x, y, width=240, height=40, bg_color="white", slider_color="green"):
+    def __init__(self, label, width=240, height=40, bg_color="#686868", slider_color="green"):
+        self.height = height
+        self.width = width
+        x = width // 3
+        y = math.floor(height * 0.1)
         #creating a background rectangle
-        self.backgroundRect = pygame.Rect(x, y, width, height)
+        self.backgroundRect = pygame.Rect(0, 0, width, height)
         #creating the rect for the slider
-        self.sliderRect = pygame.Rect(x + (width - math.floor(height * 0.8)) // 2, y + math.floor(height * 0.1), math.floor(height * 0.8), math.floor(height * 0.8))
+        self.sliderRect = pygame.Rect(x, y, math.floor(height * 0.8), math.floor(height * 0.8))
         #setting the slider color
         self.slider_color= slider_color
         #setting the background color
         self.bg_color= bg_color
         #initialising active at false
-        self.active = False
+        self.state = "inactive"
+        self.label = label
         self.container = pygame.Surface((width, height))
-        self.slider_surface = pygame.Surface((height, height))
+        self.slider_surface = pygame.Surface((math.floor(height * 0.8), math.floor(height * 0.8)))
+        self.container.fill(self.bg_color)
+        self.slider_surface.fill(self.slider_color)
     #this method returns the percentage of the slider
     #example:
     '''
@@ -224,23 +258,35 @@ class Slider:
         return self.slider_color, self.sliderRect
     def get_slider_rect(self):
         return self.sliderRect
-    def update(self):
+    def update(self, cords, mouse_clicked):
+        if mouse_clicked:
+            click_bool = check_mouse_click(cords[0], cords[1], self.sliderRect.left, self.sliderRect.top, self.sliderRect.width, self.sliderRect.height)
+            if click_bool:
+                self.make_active(cords[0])
+        else:
+            self.make_inactive()
+        self.slide(cords[0])
+    def update_container(self):
         self.container.fill(self.bg_color)
-        self.container.blit(self.slider_surface, ())
+        self.container.blit(self.slider_surface, (self.sliderRect.left, self.sliderRect.top))
     #make the slider active.
     def make_active(self, mouseX):
         #making the slider active.
-        self.active = True
+        self.state = "active"
+        self.slider_surface.fill("#ff0000")
         #noting where the slider position was at the begin of the slide.
         self.initial_pos = self.sliderRect.left
         #noting where the mouse position was at the begin of the slider.
         self.mouse_pos = mouseX
+         #method that makes the slider inactive.
+
+    def make_inactive(self):
+        self.state = "inactive"
+        self.slider_surface.fill("green")
     #method which returns the state of the slider.
-    def isActive(self):
-        return self.active
     def slide(self, mouseX):
         #checking if the slider is active.
-        if (self.active):
+        if (self.state == "active"):
             #setting the x coordinate of the slider to the initial position of the slider + the distance that the mouse has travelled
             #that distance is calculated by subtracting the current mouse x coordinate but the old x coordinate.
             self.sliderRect.left = self.initial_pos + (mouseX - self.mouse_pos)
@@ -250,7 +296,4 @@ class Slider:
             elif self.get_percentage() < 0:
                 self.set_percentage(0)
 
-    #method that makes the slider inactive.
-
-    def make_inactive(self):
-        self.active = False
+   
