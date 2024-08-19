@@ -5,11 +5,15 @@ from UI import Container, Button, Header, Slider
 from particle_sim_functions import collision_handling
 from graphing_functions import data_point_gen
 from electricity import Electricity
+
 class Game:
+
     def test(self):
         print("HELLOWORLD")
+
     #initialise variables for the main menu state.
     def initialise_main_menu(self):
+
         #change the state to main menu
         self.state = "MAINMENU"
         #creating the UI object then adding each button to it
@@ -31,7 +35,9 @@ class Game:
         for i in range(0, len(self.texts)):
             #adding the rectangle of every text that must be rendered to the list.
             self.texts[i].append(pygame.Rect(((self.window_width - self.texts[i][0].get_size()[0]) // 2, 100 + 50 * i), self.texts[i][0].get_size()))
+
     def __init__(self, window_width=800, window_height=800):
+
         #this method is called when the game object is created, it does all of the important initialising.
         pygame.init()
 
@@ -85,6 +91,7 @@ class Game:
         pos = pygame.mouse.get_pos()
         #returning whether the mouse overlaps with the rect given in the argument.
         return (pos[0] < rect.right and rect.left < pos[0] and rect.top < pos[1] and rect.bottom > pos[1])
+
     def draw_graph(self, function, width=700, height=700):
         #drawing the graph.
         self.state = "GRAPHS"
@@ -92,9 +99,13 @@ class Game:
         self.screen.fill("BLACK")
         w, h = container.get_size()
         self.screen.blit(container, ((self.window_width - w) // 2, (self.window_height - h) // 2))
+
     def initialise_e_sim(self):
+        #initialising electricity simulator.
         self.state = "ELECTRICITY"
         self.electricity = Electricity()
+
+        #initialising the UI with sliders for x, y coordinates to select squares, and options to add components.
         self.ui.reset()
         self.ui.add_object(Header(200, 30, "Electric Simulator", self.ui.move_ui, "H", "#111111"))
         self.ui.add_object(Slider("x",200, 25))
@@ -103,6 +114,7 @@ class Game:
         self.ui.add_object(Button(200, 25, "Add Resistor", self.electricity.add_resistor, "RES"))
         self.ui.add_object(Button(200, 25, "INSERT COMPONENT", self.electricity.insert_component, "INSERT"))
         self.ui.add_object(Button(200, 20, "Back", self.initialise_main_menu, "B2", "#ff4848"))
+
     def main(self):
         #this is the game loop.
         while self.running:
@@ -178,22 +190,31 @@ class Game:
                         self.running = False
                         exit()
             
+                #updating the current location of the cursor which is based on the sliders.
                 x = self.ui.query("x") * self.window_width
                 y = self.ui.query("y") * self.window_height
                 self.electricity.update_outline(x, y, True)
+                
+                #refreshing the canvas
                 self.electricity.update_container()
+
+                #putting the canvas on the main screen.
                 self.screen.blit(self.electricity.canvas, (0, 0))
                 self.clock.tick(60)
             
             if self.state == "MOMENTS":
+
+                #currently unfinished
                 dt = self.clock.tick(60)
                 self.moments_object.run_physics(dt)
                 self.screen.blit(self.moments_object.window, (0, 0))
        
             
+            #updating the UI.
             pos = pygame.mouse.get_pos()
             self.ui.update(pos, pygame.mouse.get_pressed()[0])
 
+            
             self.screen.blit(self.ui.container, (self.ui.x, self.ui.y))
             pygame.display.flip()
 
