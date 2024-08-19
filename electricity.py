@@ -21,17 +21,32 @@ wire_dict = {
     "L":horizontal_wire
 }
 
+class Junctions:
+    def __init__(self):
+        self.j_list = [] 
+    def add_junction(self, variable):
+        for item in list_var:
+            if variable == item:
+                self.j_list.append(variable)
+
+
+
+
 class Electricity:
         
+    e_grid_coords = {}
     def insert_component(self):
         # changing the outline back to the white outline.
         self.outline_square.fill((0, 0, 0, 0))
         pygame.draw.rect(self.outline_square, "white", (0, 0, self.square_width, self.square_width), 1)
 
+
     def add_resistor(self):
         # changing the outline to the resistor.
         self.outline_square.fill((0, 0, 0, 0))
         self.outline_square.blit(resistor, (0, 0))
+        
+
         
     #updating the outline around the square.
     def update_outline(self, x_pos, y_pos, outline_bool=False):
@@ -96,10 +111,11 @@ class Electricity:
             self.asc_string += string2 + "\n"
 
         
-    def get_junctions(self, x_list, y_list):
-        intersections = []
 
-        print(x_list, y_list)
+
+    def get_junctions(self, x_list, y_list):
+        intersections = Junctions()
+
         for h_line in x_list:
             h_y, h_x1, h_x2 = h_line
             
@@ -110,33 +126,20 @@ class Electricity:
                 if h_x1 <= v_x <= h_x2:
                     # Check if the horizontal line's y-coordinate is within the vertical line's y-range
                     if v_y1 <= h_y <= v_y2:
-                        type = ""
-                        # An intersection is found
-                        if h_y == v_y1:
-                            if v_y2 > h_y:
-                                type += "D"
-                            else:
-                                type += "U"
-                        elif h_y == v_y2:
-                            if v_y1 > h_y:
-                                type += "D"
-                            else:
-                                type += "U"
-                        if v_x == h_x1:
-                            if h_x2 > v_x:
-                                type += "R"
-                            else:
-                                type += "L"
-                        elif v_x == h_x2:
-                            if h_x1 > v_x:
-                                type += "R"
-                            else:
-                                type += "L"
-                        
-                        intersections.append((v_x, h_y, type))
-                        print(v_x, h_y)
+                        coordinates = (v_x, h_y)
+                        intersections.add_item(coordinates)
+                
 
+        for h_line in x_list:
+            h_y, h_x1, h_x2 = h_line
+            intersections.add_item((h_x1, h_y))
+            intersections.add_item((h_x2, h_y))
+            
 
+        for v_line in y_list:
+            v_x, v_y1, v_y2 = v_line
+            intersections.add_item((v_x, v_y1))
+            intersections.add_item((v_x, v_y2))
 
         
         return intersections
@@ -161,7 +164,7 @@ class Electricity:
             wire_img = wire_dict["R"]
             x = coords[1]
             y = coords[0]
-            surface = pygame.Surface((width, height))
+            surface = pygame.Surface((width, height), pygame.SRCALPHA)
             for i in range(0, max_count):
                 surface.blit(wire_img, (self.square_width * i, 0))
 
@@ -176,7 +179,7 @@ class Electricity:
             y = coords[1]
             x = coords[0]
             max_count = height // self.square_width
-            surface = pygame.Surface((width, height))
+            surface = pygame.Surface((width, height), pygame.SRCALPHA)
             for i in range(0, max_count):
                 surface.blit(wire_img, (0, self.square_width * i))
                 
@@ -188,6 +191,47 @@ class Electricity:
         larger_surface.blit(surface, (x, y))
         return larger_surface
 
+
+    def add_wires_to_grid(self, coords, direction):
+        if direction == "x":
+            for x in range(coords[1], coords[2] + self.square_width, self.square_width):
+                self.e_grid_coords[(x, coords[0])] = "W"
+        elif direction == "y":
+            for y in range(coords[1], coords[2] + self.square_width, self.square_width):
+                self.e_grid_coords[(coords[0], y)] = "W"
+
+    def get_junction_type(self, coords):
+        j_type = ""
+        n_coords = (coords[0], coords[1] - self.square_width)
+        s_coords = (coords[0], coords[1] + self.square_width)
+        e_coords = (coords[0] + self.square_width, coords[1])
+        w_coords = (coords[0] - self.square_width, coords[1])
+        if self.e_grid_coords[n_coords] == "W":
+            j_type += "N"
+        if self.e_grid_coords[e_coords] == "W":
+            j_type += "E"
+        if self.e_grid_coords[s_coords] == "W":
+            j_type += "S"
+        if self.e_grid_coords[w_coords] == "W":
+            j_type += "W"
+
+        return j_type
+
+    
+    def get_junction_surface(self, j_type):
+        surface = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
+        surface.fill((0, 0, 0, 0))
+        if "N" in j_type:
+            surface.blit(wire_dict["N"], (0, 0))
+        if "E" in j_type:
+            surface.blit(wire_dict["E"], (0, 0))
+        if "S" in j_type:
+            surface.blit(wire_dict["S"], (0, 0))
+        if "W" in j_type:
+            surface.blit(wire_dict["W"], (0, 0))
+        return surface
+
+
     def update_wire(self):
         components = self.asc_string.split('\n')
         y_wire_list = []
@@ -198,24 +242,29 @@ class Electricity:
                 if array[1] == array[3]:
                     y_range = [int(array[2]), int(array[4])]
                     y_range.sort()
+                    self.add_wires_to_grid((int(array[1]), y_range[0], y_range[1]), "y")
                     y_wire_list.append([int(array[1]), y_range[0], y_range[1]])
                 if array[2] == array[4]:
                     x_range = [int(array[1]), int(array[3])]
                     x_range.sort()
+                    self.add_wires_to_grid((int(array[2]), x_range[0], x_range[1]), "x")
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
 
         junction_list = self.get_junctions(x_wire_list, y_wire_list)
         self.circuit.fill((0, 0, 0, 0))
-        for junction in junction_list:
-            wire = wire_dict[junction[2]]
-            self.circuit.blit(wire, (junction[0], junction[1]))
+        
+        #drawing the horizontal wire, vertical wiers then junctions.
         for x_wire in x_wire_list:
             wire_surface = self.draw_wire(x_wire, "x")
             self.circuit.blit(wire_surface, (0, 0))
+            
         for y_wire in y_wire_list:
             wire_surface = self.draw_wire(y_wire, "y")
             self.circuit.blit(wire_surface, (0, 0))
-
+            
+        for junction in junction_list:
+            wire = wire_dict["R"]
+            self.circuit.blit(wire, (junction[0], junction[1]))
 
 
 
