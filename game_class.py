@@ -113,6 +113,7 @@ class Game:
         self.ui.add_object(Button(200, 25, "TOGGLE WIRE", self.electricity.toggle_wire, "TOGGLE_WIRE", "#000088"))
         self.ui.add_object(Button(200, 25, "Add Resistor", self.electricity.add_resistor, "RES"))
         self.ui.add_object(Button(200, 25, "INSERT COMPONENT", self.electricity.insert_component, "INSERT"))
+        self.ui.add_object(Button(200, 25, "Rotate", self.electricity.change_orientation, "ROTATE"))
         self.ui.add_object(Button(200, 20, "Back", self.initialise_main_menu, "B2", "#ff4848"))
 
     def main(self):

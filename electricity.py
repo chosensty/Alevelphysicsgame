@@ -79,38 +79,6 @@ class Electricity:
 
         
 
-
-    def get_junctions(self, x_list, y_list):
-        intersections = Junctions()
-
-        for h_line in x_list:
-            h_y, h_x1, h_x2 = h_line
-            
-            for v_line in y_list:
-                v_x, v_y1, v_y2 = v_line
-                
-                # Check if the vertical line's x-coordinate is within the horizontal line's x-range
-                if h_x1 <= v_x <= h_x2:
-                    # Check if the horizontal line's y-coordinate is within the vertical line's y-range
-                    if v_y1 <= h_y <= v_y2:
-                        coordinates = (v_x, h_y)
-                        intersections.add_item(coordinates)
-                
-
-        for h_line in x_list:
-            h_y, h_x1, h_x2 = h_line
-            intersections.add_item((h_x1, h_y))
-            intersections.add_item((h_x2, h_y))
-            
-
-        for v_line in y_list:
-            v_x, v_y1, v_y2 = v_line
-            intersections.add_item((v_x, v_y1))
-            intersections.add_item((v_x, v_y2))
-
-        
-        return intersections
-
     def draw_wire(self, coords, direction, canvas_w=800, canvas_h=800):
         #initialising width, height, x and y coordinates to empty variables. 
         width = 0
@@ -180,37 +148,6 @@ class Electricity:
             for y in range(coords[1], coords[2] + self.square_width, self.square_width):
                 self.e_grid_coords[(coords[0], y)] = "W"
 
-    def get_junction_type(self, coords):
-        j_type = ""
-        n_coords = (coords[0], coords[1] - self.square_width)
-        s_coords = (coords[0], coords[1] + self.square_width)
-        e_coords = (coords[0] + self.square_width, coords[1])
-        w_coords = (coords[0] - self.square_width, coords[1])
-        
-        if n_coords in self.e_grid_coords and self.e_grid_coords[n_coords] == "W":
-            j_type += "N"
-        if e_coords in self.e_grid_coords and self.e_grid_coords[e_coords] == "W":
-            j_type += "E"
-        if s_coords in self.e_grid_coords and self.e_grid_coords[s_coords] == "W":
-            j_type += "S"
-        if w_coords in self.e_grid_coords and self.e_grid_coords[w_coords] == "W":
-            j_type += "W"
-        return j_type
-
-    
-    def get_junction_surface(self, j_type):
-        surface = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
-        surface.fill((0, 0, 0, 0))
-        if "N" in j_type:
-            surface.blit(wire_dict["N"], (0, 0))
-        if "E" in j_type:
-            surface.blit(wire_dict["E"], (0, 0))
-        if "S" in j_type:
-            surface.blit(wire_dict["S"], (0, 0))
-        if "W" in j_type:
-            surface.blit(wire_dict["W"], (0, 0))
-        return surface
-
 
     def update_wire(self):
         components = self.asc_string.split('\n')
@@ -232,14 +169,12 @@ class Electricity:
                     self.add_wires_to_grid((int(array[2]), x_range[0], x_range[1]), "x")
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
 
-        #junction_list = self.get_junctions(x_wire_list, y_wire_list)
         
         self.circuit.fill((0, 0, 0, 0))
         print(x_wire_list)
         print(y_wire_list)
 
         
-        #empty_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
 
         #drawing the horizontal wire, vertical wiers then junctions.
         for x_wire in x_wire_list:
@@ -250,10 +185,6 @@ class Electricity:
             wire_surface = self.draw_wire(y_wire, "y")
             self.circuit.blit(wire_surface, (0, 0))
             
-    #    for junction in junction_list.j_list:
-    #        j_type = self.get_junction_type(junction)
-    #        junction_surface = self.get_junction_surface(j_type)
-    #          self.circuit.blit(junction_surface, (junction[0], junction[1]))
 
 
     def toggle_wire(self): #toggling the wire 
@@ -280,18 +211,29 @@ class Electricity:
             self.canvas.blit(self.outline_square, (self.x_outline, self.y_outline))
 
         if self.cursor_state == "inserting_wire":
+            #getting the coordinates of the inserting wire.
             x_coords = [self.init_wire_coords[0], self.x_outline]
             x_coords.sort()
             y_coords = [self.init_wire_coords[1], self.y_outline]
             y_coords.sort()
+            # coordinates must be sorted so they are drawn correctly.
             x_coord_set = [self.init_wire_coords[1], x_coords[0], x_coords[1]]
             y_coord_set = [self.x_outline, y_coords[0], y_coords[1]] 
+            if self.orientation % 2 ==0:
+                x_coord_set[0] = self.y_outline
+                y_coord_set[0] = self.init_wire_coords[0]
+
             if x_coords[0] != x_coords[1]:
                 surface = self.draw_wire(x_coord_set, "x")
                 self.canvas.blit(surface, (0, 0))
             if y_coords[0] != y_coords[1]:
                 surface = self.draw_wire(y_coord_set, "y")
                 self.canvas.blit(surface, (0, 0))
+
+    def change_orientation(self):
+        self.orientation += 1
+        if self.orientation == 4:
+            self.orientation = 0
 
 
     def __init__(self, width=800, height=800, s_width=40):
@@ -310,7 +252,7 @@ class Electricity:
         self.width = width
         self.height = height
         self.square_count = (width // s_width) * (height // s_width)
-        
+        self.orientation = 0 
         
         for i in range(0, self.square_count):
             color = ""
