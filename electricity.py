@@ -1,5 +1,6 @@
 import pygame
 
+#loading every wire type.
 vertical_wire = pygame.image.load("utilities/vertical_wire.png")
 horizontal_wire = pygame.image.load("utilities/horizontal_wire.png")
 cell = pygame.image.load("utilities/cell.png")
@@ -11,10 +12,8 @@ w_wire = pygame.image.load("utilities/w_wire.png")
 
 #dictionary containing every wire and junction type.
 wire_dict = {
-    "U":vertical_wire,
-    "D":vertical_wire,
-    "R":horizontal_wire,
-    "L":horizontal_wire,
+    "V":vertical_wire,
+    "H":horizontal_wire,
     "N":n_wire,
     "E":e_wire,
     "S":s_wire,
@@ -66,16 +65,11 @@ class Electricity:
 
         #updating the outline boolean, it can be turned to false by the user if they don't want an outline.
         self.outline_bool = outline_bool
+
         
     
     def add_wire(self, coords1, coords2):
         junction_coords = [coords2[0], coords1[1]]
-        #getting the width after the wire has been toggled two times.
-        wire_width = abs(coords1[0] - coords2[0]) 
-        wire_height = abs(coords1[1] - coords2[1]) 
-        #creating a horizontal and vertical strip.
-        
-
         
         string1 = f'WIRE {int(coords1[0])} {int(coords1[1])} {int(junction_coords[0])} {int(junction_coords[1])}'
         self.asc_string += string1 + "\n"
@@ -132,14 +126,21 @@ class Electricity:
         #we add one more square to this to ensure that the wire isn't cut off.
         if direction == "x":
             height = self.square_width                
-            width = coords[2] - coords[1] - self.square_width
-            max_count = width // self.square_width
-            wire_img = wire_dict["R"]
-            x = coords[1] + self.square_width
+            width = abs(coords[2] - coords[1]) + self.square_width
+            max_count = int(width // self.square_width)
+            wire_img = wire_dict["H"]
+            x = coords[1]
             y = coords[0]
             surface = pygame.Surface((width, height), pygame.SRCALPHA)
-            for i in range(0, max_count):
-                surface.blit(wire_img, (self.square_width * i, 0))
+
+            surface.blit(wire_dict["E"], (0, 0))
+            for i in range(1, max_count):
+                if i != max_count - 1:
+                    surface.blit(wire_img, (self.square_width * i, 0))
+                else:
+                    surface.blit(wire_dict["W"], (self.square_width  * i, 0))
+
+
 
 
 
@@ -147,14 +148,20 @@ class Electricity:
         #same concept now just in the y direction
         elif direction == "y":
             width = self.square_width
-            height = coords[2] - coords[1] - self.square_width
-            wire_img = wire_dict["U"]
-            y = coords[1] + self.square_width
+            height = abs(coords[2] - coords[1]) + self.square_width
+            wire_img = wire_dict["V"]
+            y = coords[1]
             x = coords[0]
-            max_count = height // self.square_width
+            max_count = int(height // self.square_width)
             surface = pygame.Surface((width, height), pygame.SRCALPHA)
-            for i in range(0, max_count):
-                surface.blit(wire_img, (0, self.square_width * i))
+
+            surface.blit(wire_dict["S"], (0, 0))
+
+            for i in range(1, max_count):
+                if i != max_count - 1:
+                    surface.blit(wire_img, (0, self.square_width *  i))
+                else:
+                    surface.blit(wire_dict["N"], (0, self.square_width  * i))
                 
 
 
@@ -188,7 +195,6 @@ class Electricity:
             j_type += "S"
         if w_coords in self.e_grid_coords and self.e_grid_coords[w_coords] == "W":
             j_type += "W"
-            
         return j_type
 
     
@@ -226,12 +232,14 @@ class Electricity:
                     self.add_wires_to_grid((int(array[2]), x_range[0], x_range[1]), "x")
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
 
-        junction_list = self.get_junctions(x_wire_list, y_wire_list)
+        #junction_list = self.get_junctions(x_wire_list, y_wire_list)
         
         self.circuit.fill((0, 0, 0, 0))
+        print(x_wire_list)
+        print(y_wire_list)
 
         
-        empty_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
+        #empty_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
 
         #drawing the horizontal wire, vertical wiers then junctions.
         for x_wire in x_wire_list:
@@ -242,24 +250,21 @@ class Electricity:
             wire_surface = self.draw_wire(y_wire, "y")
             self.circuit.blit(wire_surface, (0, 0))
             
-        
-        for junction in junction_list.j_list:
-            j_type = self.get_junction_type(junction)
-            junction_surface = self.get_junction_surface(j_type)
-            self.circuit.blit(junction_surface, (junction[0], junction[1]))
+    #    for junction in junction_list.j_list:
+    #        j_type = self.get_junction_type(junction)
+    #        junction_surface = self.get_junction_surface(j_type)
+    #          self.circuit.blit(junction_surface, (junction[0], junction[1]))
 
 
-
-    def toggle_wire(self):
-
-        #toggling the wire
-        self.wire_toggled = not self.wire_toggled
-        #getting the coordinates and putting it into an array.
+    def toggle_wire(self): #toggling the wire 
+        self.wire_toggled = not self.wire_toggled #getting the coordinates and putting it into an array.
         coords = [self.x_outline, self.y_outline]
         if self.wire_toggled:
+            self.cursor_state = "inserting_wire"
             #if the wire has just been toggled, the initial coordinates are taken
             self.init_wire_coords = coords
         else:
+            self.cursor_state = "navigating"
             self.add_wire(self.init_wire_coords, coords)
             self.update_wire()
 
@@ -274,12 +279,27 @@ class Electricity:
         if self.outline_bool:
             self.canvas.blit(self.outline_square, (self.x_outline, self.y_outline))
 
+        if self.cursor_state == "inserting_wire":
+            x_coords = [self.init_wire_coords[0], self.x_outline]
+            x_coords.sort()
+            y_coords = [self.init_wire_coords[1], self.y_outline]
+            y_coords.sort()
+            x_coord_set = [self.init_wire_coords[1], x_coords[0], x_coords[1]]
+            y_coord_set = [self.x_outline, y_coords[0], y_coords[1]] 
+            if x_coords[0] != x_coords[1]:
+                surface = self.draw_wire(x_coord_set, "x")
+                self.canvas.blit(surface, (0, 0))
+            if y_coords[0] != y_coords[1]:
+                surface = self.draw_wire(y_coord_set, "y")
+                self.canvas.blit(surface, (0, 0))
+
 
     def __init__(self, width=800, height=800, s_width=40):
         #initialising all of the variables.
         self.wire_toggled = False
         self.components = []
         self.outline_bool = False
+        self.init_wire_coords =  []
         self.asc_string = ""
         self.canvas = pygame.Surface((width, height))
         self.grid = pygame.Surface((width, height))
@@ -290,6 +310,8 @@ class Electricity:
         self.width = width
         self.height = height
         self.square_count = (width // s_width) * (height // s_width)
+        
+        
         for i in range(0, self.square_count):
             color = ""
             if (i % 2 == 0 and (i // (self.square_width // 2)) % 2 == 0) or (i % 2 != 0 and (i // (self.square_width // 2)) % 2 != 0):
@@ -298,9 +320,14 @@ class Electricity:
                 color = "#525252"
             self.square.fill(color)
             self.grid.blit(self.square, ((i%(self.square_width // 2))* self.square_width, (i//(self.square_width // 2))*self.square_width))
+            
+            
         self.outline_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
         self.outline_square.fill((0, 0, 0, 0))
         pygame.draw.rect(self.outline_square, "white", (0, 0, self.square_width, self.square_width), 1)
+        
+        # N = navigating with cursor
+        self.cursor_state = "navigating"
         
         for x in range(0, width, self.square_width):
             for y in range(0, height, self.square_width):
