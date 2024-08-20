@@ -4,30 +4,35 @@ vertical_wire = pygame.image.load("utilities/vertical_wire.png")
 horizontal_wire = pygame.image.load("utilities/horizontal_wire.png")
 cell = pygame.image.load("utilities/cell.png")
 resistor = pygame.image.load("utilities/resistor.png")
-up_left = pygame.image.load("utilities/up_left_wire.png")
-up_right = pygame.image.load("utilities/up_right_wire.png")
-down_left = pygame.image.load("utilities/down_left_wire.png")
-down_right = pygame.image.load("utilities/down_right_wire.png")
+n_wire = pygame.image.load("utilities/n_wire.png")
+s_wire = pygame.image.load("utilities/s_wire.png")
+e_wire = pygame.image.load("utilities/e_wire.png")
+w_wire = pygame.image.load("utilities/w_wire.png")
 
 #dictionary containing every wire and junction type.
 wire_dict = {
-    "DL":down_left,
-    "DR":down_right,
-    "UL":up_left,
-    "UR":up_right,
     "U":vertical_wire,
     "D":vertical_wire,
     "R":horizontal_wire,
-    "L":horizontal_wire
+    "L":horizontal_wire,
+    "N":n_wire,
+    "E":e_wire,
+    "S":s_wire,
+    "W":w_wire,
 }
 
 class Junctions:
     def __init__(self):
         self.j_list = [] 
-    def add_junction(self, variable):
-        for item in list_var:
-            if variable == item:
-                self.j_list.append(variable)
+    def item_exists(self, new_j):
+        for junction in self.j_list:
+            if new_j == junction:
+                return True    
+        return False
+    def add_item(self, new_j):
+        if not self.item_exists(new_j):
+            self.j_list.append(new_j)
+
 
 
 
@@ -69,40 +74,8 @@ class Electricity:
         wire_width = abs(coords1[0] - coords2[0]) 
         wire_height = abs(coords1[1] - coords2[1]) 
         #creating a horizontal and vertical strip.
-        horizontal_strip = pygame.Surface((wire_width, self.square_width), pygame.SRCALPHA)
-        max_count = int(wire_width // self.square_width)
         
-        #blitting the resistor image across the horizontal strip.
-        for i in range(0, max_count):
-            horizontal_strip.blit(horizontal_wire, (self.square_width * i, 0))
 
-        vertical_strip = pygame.Surface((self.square_width, wire_height), pygame.SRCALPHA)
-        max_count = int(wire_height // self.square_width)
-
-        #blitting the resistor image across the vertical strip.
-        for i in range(0, max_count):
-            vertical_strip.blit(vertical_wire, (0, i * self.square_width))
-        
-        
-        #drawing the two strips.
-        if coords2[0] > coords1[0]:
-            self.circuit.blit(horizontal_strip, (coords1[0], coords1[1]))
-            if coords2[1] > coords1[1]:
-                self.circuit.blit(down_left, junction_coords)
-                self.circuit.blit(vertical_strip, (coords2[0], junction_coords[1] + self.square_width))
-
-            else:
-                self.circuit.blit(up_left, junction_coords)
-                self.circuit.blit(vertical_strip, (coords2[0], junction_coords[1] - wire_height))
-        else:
-            self.circuit.blit(horizontal_strip, (coords1[0] - wire_width + self.square_width, coords1[1]))
-            if coords2[1] > coords1[1]:
-                self.circuit.blit(down_right, junction_coords)
-                self.circuit.blit(vertical_strip, (coords2[0], junction_coords[1] + self.square_width))
-            else:
-                self.circuit.blit(up_right, junction_coords)
-                self.circuit.blit(vertical_strip, (coords2[0], junction_coords[1] - wire_height))
-        
         
         string1 = f'WIRE {int(coords1[0])} {int(coords1[1])} {int(junction_coords[0])} {int(junction_coords[1])}'
         self.asc_string += string1 + "\n"
@@ -159,10 +132,10 @@ class Electricity:
         #we add one more square to this to ensure that the wire isn't cut off.
         if direction == "x":
             height = self.square_width                
-            width = coords[2] - coords[1] + self.square_width
+            width = coords[2] - coords[1] - self.square_width
             max_count = width // self.square_width
             wire_img = wire_dict["R"]
-            x = coords[1]
+            x = coords[1] + self.square_width
             y = coords[0]
             surface = pygame.Surface((width, height), pygame.SRCALPHA)
             for i in range(0, max_count):
@@ -174,9 +147,9 @@ class Electricity:
         #same concept now just in the y direction
         elif direction == "y":
             width = self.square_width
-            height = coords[2] - coords[1] + self.square_width
+            height = coords[2] - coords[1] - self.square_width
             wire_img = wire_dict["U"]
-            y = coords[1]
+            y = coords[1] + self.square_width
             x = coords[0]
             max_count = height // self.square_width
             surface = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -206,15 +179,16 @@ class Electricity:
         s_coords = (coords[0], coords[1] + self.square_width)
         e_coords = (coords[0] + self.square_width, coords[1])
         w_coords = (coords[0] - self.square_width, coords[1])
-        if self.e_grid_coords[n_coords] == "W":
+        
+        if n_coords in self.e_grid_coords and self.e_grid_coords[n_coords] == "W":
             j_type += "N"
-        if self.e_grid_coords[e_coords] == "W":
+        if e_coords in self.e_grid_coords and self.e_grid_coords[e_coords] == "W":
             j_type += "E"
-        if self.e_grid_coords[s_coords] == "W":
+        if s_coords in self.e_grid_coords and self.e_grid_coords[s_coords] == "W":
             j_type += "S"
-        if self.e_grid_coords[w_coords] == "W":
+        if w_coords in self.e_grid_coords and self.e_grid_coords[w_coords] == "W":
             j_type += "W"
-
+            
         return j_type
 
     
@@ -239,6 +213,8 @@ class Electricity:
         for component in components:
             array = component.split(" ")
             if array[0] == "WIRE":
+                if array[1] == array[3] and array[2] == array[4]:
+                    continue
                 if array[1] == array[3]:
                     y_range = [int(array[2]), int(array[4])]
                     y_range.sort()
@@ -251,8 +227,12 @@ class Electricity:
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
 
         junction_list = self.get_junctions(x_wire_list, y_wire_list)
-        self.circuit.fill((0, 0, 0, 0))
         
+        self.circuit.fill((0, 0, 0, 0))
+
+        
+        empty_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
+
         #drawing the horizontal wire, vertical wiers then junctions.
         for x_wire in x_wire_list:
             wire_surface = self.draw_wire(x_wire, "x")
@@ -262,9 +242,11 @@ class Electricity:
             wire_surface = self.draw_wire(y_wire, "y")
             self.circuit.blit(wire_surface, (0, 0))
             
-        for junction in junction_list:
-            wire = wire_dict["R"]
-            self.circuit.blit(wire, (junction[0], junction[1]))
+        
+        for junction in junction_list.j_list:
+            j_type = self.get_junction_type(junction)
+            junction_surface = self.get_junction_surface(j_type)
+            self.circuit.blit(junction_surface, (junction[0], junction[1]))
 
 
 
@@ -319,4 +301,8 @@ class Electricity:
         self.outline_square = pygame.Surface((self.square_width, self.square_width), pygame.SRCALPHA)
         self.outline_square.fill((0, 0, 0, 0))
         pygame.draw.rect(self.outline_square, "white", (0, 0, self.square_width, self.square_width), 1)
+        
+        for x in range(0, width, self.square_width):
+            for y in range(0, height, self.square_width):
+                self.e_grid_coords[(x, y)] = "B"
     
