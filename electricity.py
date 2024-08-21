@@ -4,7 +4,7 @@ import pygame
 vertical_wire = pygame.image.load("utilities/vertical_wire.png")
 horizontal_wire = pygame.image.load("utilities/horizontal_wire.png")
 cell = pygame.image.load("utilities/cell.png")
-resistor = pygame.image.load("utilities/resistor.png")
+resistor_img = pygame.image.load("utilities/resistor.png")
 n_wire = pygame.image.load("utilities/n_wire.png")
 s_wire = pygame.image.load("utilities/s_wire.png")
 e_wire = pygame.image.load("utilities/e_wire.png")
@@ -21,13 +21,19 @@ wire_dict = {
 }
 
 class Junctions:
+    
+    
     def __init__(self):
         self.j_list = [] 
+        
+        
     def item_exists(self, new_j):
         for junction in self.j_list:
             if new_j == junction:
                 return True    
         return False
+    
+    
     def add_item(self, new_j):
         if not self.item_exists(new_j):
             self.j_list.append(new_j)
@@ -46,10 +52,36 @@ class Electricity:
 
 
     def add_resistor(self):
-        # changing the outline to the resistor.
-        self.outline_square.fill((0, 0, 0, 0))
-        self.outline_square.blit(resistor, (0, 0))
+        coords = (int(self.x_outline), int(self.y_outline))
+        self.e_grid_coords[coords] = "R"
+        schem_string = "RESISTOR "
         
+        if self.orientation % 2 == 0:
+            
+            schem_string += f'{coords[0]} {coords[1]} {coords[0] + self.square_width} {coords[1]}\n'
+            coords = (self.x_outline + self.square_width, self.y_outline)
+            self.e_grid_coords[coords] = "R"
+            
+        elif self.orientation % 2== 1:
+            
+            schem_string += f'{coords[0]} {coords[1]} {coords[0]} {coords[1] + self.square_width}\n'
+            coords = (self.x_outline, self.y_outline + self.square_width)
+            self.e_grid_coords[coords] = "R"
+
+        self.asc_string += schem_string
+            
+
+
+
+
+    def select_resistor(self):
+        # changing the outline to the resistor.
+        if self.cursor_state != "inserting_resistor":
+            self.cursor_state = "inserting_resistor"
+        else:
+            self.add_resistor()
+            self.cursor_state = "navigating"
+            self.update_wire()
 
         
     #updating the outline around the square.
@@ -76,6 +108,7 @@ class Electricity:
         if not(coords2[0] == junction_coords[0] and coords2[1] == junction_coords[1]):
             string2 = f'WIRE {int(junction_coords[0])} {int(junction_coords[1])} {int(coords2[0])} {int(coords2[1])}'
             self.asc_string += string2 + "\n"
+
 
         
 
@@ -133,7 +166,7 @@ class Electricity:
                 
 
 
-
+        
         larger_surface = pygame.Surface((canvas_w, canvas_h), pygame.SRCALPHA)
         larger_surface.fill((0, 0, 0, 0))
         larger_surface.blit(surface, (x, y))
@@ -148,13 +181,97 @@ class Electricity:
             for y in range(coords[1], coords[2] + self.square_width, self.square_width):
                 self.e_grid_coords[(coords[0], y)] = "W"
 
-
-    def update_wire(self):
+    def remove_schem_redundancies(self):
         components = self.asc_string.split('\n')
         y_wire_list = []
         x_wire_list = []
+        
+        for i in range(0, len(components)):
+            component = components[i]
+            array = component.split(" ")
+           
+            if array[0] == "WIRE":
+                if array[1] == array[3] and array[2] == array[4]:
+                    continue
+                if array[1] == array[3]:
+                    y_range = [int(array[2]), int(array[4])]
+                    y_range.sort()
+                    y_wire_list.append([int(array[1]), y_range[0], y_range[1]])
+                if array[2] == array[4]:
+                    x_range = [int(array[1]), int(array[3])]
+                    x_range.sort()
+                    x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
+                del components[i]
+
+        x_wire_list.sort(key=lambda x: x[0])
+        y_wire_list.sort(key=lambda x: x[0])
+        
+        for i1 in range(0, len(x_wire_list)):
+            for i2 in range(i1 + 1, len(x_wire_list)):
+                if x_wire_list[i1][0] == x_wire_list[i2][0]:
+                    a1, b1 = x_wire_list[i1][1:]
+                    a2, b2 = x_wire_list[i2][1:]
+                    if not (b1 < a2 or b2 < a1):
+                        del x_wire_list[i2]
+                        x_wire_list[i1][1] = min(a1, a2)
+                        x_wire_list[i1][2] = max(b1, b2)
+                else:
+                    break
+
+        for i1 in range(0, len(y_wire_list)):
+            for i2 in range(i1 + 1, len(y_wire_list)):
+                if y_wire_list[i1][0] == y_wire_list[i2][0]:
+                    a1, b1 = y_wire_list[i1][1:]
+                    a2, b2 = y_wire_list[i2][1:]
+                    if not (b1 < a2 or b2 < a1):
+                        del y_wire_list[i2]
+                        y_wire_list[i1][1] = min(a1, a2)
+                        y_wire_list[i1][2] = max(b1, b2)
+                else:
+                    break
+
+
+        for x_wire in x_wire_list:
+            string = f'WIRE {x_wire[1]} {x_wire[0]} {x_wire[2]} {x_wire[0]}'
+            components.append(string)
+
+        for y_wire in y_wire_list:
+            string = f'WIRE {y_wire[0]} {y_wire[1]} {y_wire[0]} {y_wire[2]}'
+            components.append(string)
+
+
+        self.asc_string = "\n".join(components)
+
+
+
+
+
+    def update_wire(self):
+        
+        components = self.asc_string.split('\n')
+        y_wire_list = []
+        x_wire_list = []
+        
+        self.circuit.fill((0, 0, 0, 0))
+        
         for component in components:
             array = component.split(" ")
+
+            if array[0] == "RESISTOR":
+                x1, y1, x2, y2 = array[1:]
+                print(array[1:])
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                width = abs(x2 - x1)
+                height = abs(y2 - y1)
+                res_img = resistor_img
+                small_x = x1
+                small_y = y1
+                if x1 == x2:
+                    res_img = pygame.transform.rotate(resistor_img, 90)
+                    self.circuit.blit(res_img, (small_x, small_y + (self.square_width // 2)))
+                if y1 == y2:
+                    self.circuit.blit(res_img, (small_x + (self.square_width // 2), small_y))     
+
             if array[0] == "WIRE":
                 if array[1] == array[3] and array[2] == array[4]:
                     continue
@@ -168,11 +285,6 @@ class Electricity:
                     x_range.sort()
                     self.add_wires_to_grid((int(array[2]), x_range[0], x_range[1]), "x")
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
-
-        
-        self.circuit.fill((0, 0, 0, 0))
-        print(x_wire_list)
-        print(y_wire_list)
 
         
 
@@ -199,6 +311,82 @@ class Electricity:
             self.add_wire(self.init_wire_coords, coords)
             self.update_wire()
 
+            
+        # Function to parse the schematic file and generate a netlist
+    def generate_netlist(self):
+        # Dictionary to store components and their connections
+        components = []
+        nodes = {}  # To map coordinates to node numbers
+        wire_connections = []  # To track wire connections (start, end)
+
+        # Initialize node counter
+        node_counter = 1
+        
+        self.remove_schem_redundancies()
+
+        lines = self.asc_string.split("\n")
+        # First pass: Identify and assign nodes
+        for line in lines:
+            tokens = line.split()
+            component_name = tokens[0]
+            x1, y1, x2, y2 = int(tokens[1]), int(tokens[2]), int(tokens[3]), int(tokens[4])
+
+            if component_name == "WIRE":
+                wire_connections.append(((x1, y1), (x2, y2)))
+
+            # Assign nodes for components if not already assigned
+            if component_name in ["RESISTOR", "CELL"]:
+                if (x1, y1) not in nodes:
+                    nodes[(x1, y1)] = node_counter
+                    node_counter += 1
+                if (x2, y2) not in nodes:
+                    nodes[(x2, y2)] = node_counter
+                    node_counter += 1
+
+        # Second pass: Handle wire connections and merge nodes
+        for (start, end) in wire_connections:
+            if start in nodes and end in nodes:
+                # Merge nodes by updating the end node to be the same as the start node
+                end_node = nodes[end]
+                start_node = nodes[start]
+
+                # Replace all instances of end_node with start_node
+                for key in nodes:
+                    if nodes[key] == end_node:
+                        nodes[key] = start_node
+            elif start in nodes:
+                nodes[end] = nodes[start]
+            elif end in nodes:
+                nodes[start] = nodes[end]
+            else:
+                # Both are new, assign the same node
+                nodes[start] = node_counter
+                nodes[end] = node_counter
+                node_counter += 1
+
+        # Third pass: Generate component entries
+        for line in lines:
+            tokens = line.split()
+            component_name = tokens[0]
+            x1, y1, x2, y2 = int(tokens[1]), int(tokens[2]), int(tokens[3]), int(tokens[4])
+
+            if component_name == "RESISTOR":
+                node1 = nodes[(x1, y1)]
+                node2 = nodes[(x2, y2)]
+                components.append(f"R{len(components) + 1} N{node1} N{node2} 1k")
+            elif component_name == "CELL":
+                node1 = nodes[(x1, y1)]
+                node2 = nodes[(x2, y2)]
+                components.append(f"V{len(components) + 1} N{node1} N{node2} DC 5")
+
+        # Generate the netlist
+        netlist = ".title Generated Netlist\n"
+        for component in components:
+            netlist += component + "\n"
+        netlist += ".end"
+
+        print(netlist)
+
 
     #updating the container.
     def update_container(self):
@@ -207,7 +395,7 @@ class Electricity:
         #starting by drawing the grid, then the circuit, then the outline.
         self.canvas.blit(self.grid, (0, 0))
         self.canvas.blit(self.circuit, (0, 0))
-        if self.outline_bool:
+        if self.cursor_state == "navigating" or True:
             self.canvas.blit(self.outline_square, (self.x_outline, self.y_outline))
 
         if self.cursor_state == "inserting_wire":
@@ -229,6 +417,19 @@ class Electricity:
             if y_coords[0] != y_coords[1]:
                 surface = self.draw_wire(y_coord_set, "y")
                 self.canvas.blit(surface, (0, 0))
+                
+
+        if self.cursor_state == "inserting_resistor":
+            resistor = resistor_img
+            if self.orientation% 2 != 0:
+                resistor = pygame.transform.rotate(resistor_img, 90 * self.orientation)
+           
+
+            if self.orientation % 2 == 0:
+                self.canvas.blit(resistor, (self.x_outline + (self.square_width// 2), self.y_outline))
+            elif self.orientation % 2 == 1:
+                self.canvas.blit(resistor, (self.x_outline, self.y_outline + (self.square_width //2)))
+
 
     def change_orientation(self):
         self.orientation += 1
