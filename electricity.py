@@ -70,7 +70,35 @@ class Electricity:
 
         self.asc_string += schem_string
             
+    def add_cell(self):
+        coords = (int(self.x_outline), int(self.y_outline))
+        self.e_grid_coords[coords] = "C"
+        polarity = "S"
+        if self.orientation > 1:
+            polarity = "N"
+       
+        schem_string = "CELL" + polarity + " "
 
+        if self.orientation% 2 == 0:
+            schem_string += f'{coords[0]} {coords[1]} {coords[0] + self.square_width} {coords[1]}\n'
+            coords = (self.x_outline + self.square_width, self.y_outline)
+            self.e_grid_coords[coords] = "C"
+        elif self.orientation % 2 == 1:
+            schem_string += f'{coords[0]} {coords[1]} {coords[0]} {coords[1] + self.square_width}\n'
+            coords = (self.x_outline, self.y_outline + self.square_width)
+            self.e_grid_coords[coords] = "C"
+
+        self.asc_string += schem_string
+
+
+    def select_cell(self):
+        # changing the outline to the resistor.
+        if self.cursor_state != "inserting_cell":
+            self.cursor_state = "inserting_cell"
+        else:
+            self.add_cell()
+            self.cursor_state = "navigating"
+            self.update_wire()
 
 
 
@@ -186,28 +214,33 @@ class Electricity:
         y_wire_list = []
         x_wire_list = []
         
-        for i in range(0, len(components)):
+        i = 0
+        while i < len(components):
             component = components[i]
             array = component.split(" ")
            
             if array[0] == "WIRE":
                 if array[1] == array[3] and array[2] == array[4]:
-                    continue
-                if array[1] == array[3]:
+                    pass
+                elif array[1] == array[3]:
                     y_range = [int(array[2]), int(array[4])]
                     y_range.sort()
                     y_wire_list.append([int(array[1]), y_range[0], y_range[1]])
-                if array[2] == array[4]:
+                elif array[2] == array[4]:
                     x_range = [int(array[1]), int(array[3])]
                     x_range.sort()
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
                 del components[i]
+            else:
+                i+=1
 
         x_wire_list.sort(key=lambda x: x[0])
         y_wire_list.sort(key=lambda x: x[0])
         
-        for i1 in range(0, len(x_wire_list)):
-            for i2 in range(i1 + 1, len(x_wire_list)):
+        i1 = 0
+        while (i1 < len(x_wire_list)):
+            i2 = i1 + 1
+            while (i2 <  len(x_wire_list)):
                 if x_wire_list[i1][0] == x_wire_list[i2][0]:
                     a1, b1 = x_wire_list[i1][1:]
                     a2, b2 = x_wire_list[i2][1:]
@@ -217,9 +250,13 @@ class Electricity:
                         x_wire_list[i1][2] = max(b1, b2)
                 else:
                     break
+                i2+= 1
+            i1 += 1
 
-        for i1 in range(0, len(y_wire_list)):
-            for i2 in range(i1 + 1, len(y_wire_list)):
+        i1 = 0
+        while i1 < len(y_wire_list):
+            i2 = i1 + 1
+            while i2 < len(y_wire_list):
                 if y_wire_list[i1][0] == y_wire_list[i2][0]:
                     a1, b1 = y_wire_list[i1][1:]
                     a2, b2 = y_wire_list[i2][1:]
@@ -229,6 +266,8 @@ class Electricity:
                         y_wire_list[i1][2] = max(b1, b2)
                 else:
                     break
+                i2+=1 
+            i1 += 1
 
 
         for x_wire in x_wire_list:
@@ -257,6 +296,26 @@ class Electricity:
         for component in components:
             array = component.split(" ")
 
+            if array[0][:4] == "CELL":
+                x1, y1, x2, y2 = array[1:]
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                width = abs(x2 - x1)
+                height = abs(y2 - y1)
+                cell_img = cell
+                small_x = x1
+                small_y = y1
+                rotation_factor = 0
+                if array[0][4] == "N":
+                    rotation_factor += 180
+                cell_img = pygame.transform.rotate(cell, -rotation_factor)
+                if x1 == x2:
+                    rotation_factor += 90
+                    cell_img = pygame.transform.rotate(cell, -rotation_factor)
+                    self.circuit.blit(cell_img, (small_x, small_y + (self.square_width // 2)))
+                if y1 == y2:
+                    self.circuit.blit(cell_img, (small_x + (self.square_width // 2), small_y)) 
+ 
+
             if array[0] == "RESISTOR":
                 x1, y1, x2, y2 = array[1:]
                 print(array[1:])
@@ -267,10 +326,10 @@ class Electricity:
                 small_x = x1
                 small_y = y1
                 if x1 == x2:
-                    res_img = pygame.transform.rotate(resistor_img, 90)
+                    res_img = pygame.transform.rotate(resistor_img, -90)
                     self.circuit.blit(res_img, (small_x, small_y + (self.square_width // 2)))
                 if y1 == y2:
-                    self.circuit.blit(res_img, (small_x + (self.square_width // 2), small_y))     
+                    self.circuit.blit(res_img, (small_x + (self.square_width // 2), small_y)) 
 
             if array[0] == "WIRE":
                 if array[1] == array[3] and array[2] == array[4]:
@@ -285,6 +344,8 @@ class Electricity:
                     x_range.sort()
                     self.add_wires_to_grid((int(array[2]), x_range[0], x_range[1]), "x")
                     x_wire_list.append([int(array[2]), x_range[0], x_range[1]])
+
+
 
         
 
@@ -325,6 +386,7 @@ class Electricity:
         self.remove_schem_redundancies()
 
         lines = self.asc_string.split("\n")
+        lines = [line for line in lines if line] 
         # First pass: Identify and assign nodes
         for line in lines:
             tokens = line.split()
@@ -364,6 +426,8 @@ class Electricity:
                 nodes[end] = node_counter
                 node_counter += 1
 
+        first_cell_found = False
+        gnd_node = 0
         # Third pass: Generate component entries
         for line in lines:
             tokens = line.split()
@@ -374,10 +438,35 @@ class Electricity:
                 node1 = nodes[(x1, y1)]
                 node2 = nodes[(x2, y2)]
                 components.append(f"R{len(components) + 1} N{node1} N{node2} 1k")
-            elif component_name == "CELL":
+            if component_name[:4] == "CELL" and first_cell_found:
                 node1 = nodes[(x1, y1)]
                 node2 = nodes[(x2, y2)]
-                components.append(f"V{len(components) + 1} N{node1} N{node2} DC 5")
+                
+                if component_name[4] == "S":
+                    components.append(f"V{len(components) + 1} N{node2} N{node1} DC 5")
+                else:
+                    components.append(f"V{len(components) + 1} N{node1} N{node2} DC 5")
+            elif not first_cell_found and component_name[:4] == "CELL":
+                node1 = nodes[(x1, y1)]
+                node2 = nodes[(x2, y2)]
+
+                
+                if component_name[4] == "S":
+                    components.append(f"V{len(components) + 1} N{node2} 0 DC 5")
+                    gnd_node = node1
+                    #components.append(f'R{len(components) + 1} N{node1} 0 0')
+                else:
+                    components.append(f"V{len(components) + 1} N{node1} 0 DC 5")
+                    gnd_node = node2
+                    #components.append(f'R{len(components) + 1} N{node1} 0 0')
+                first_cell_found = True
+
+        for x in range(0, len(components)):
+            data = components[x].split()
+            for y in range(0, len(data)):
+                if data[y] == f'N{gnd_node}':
+                    data[y] = '0'
+                    components[x] = ' '.join(data)
 
         # Generate the netlist
         netlist = ".title Generated Netlist\n"
@@ -418,6 +507,17 @@ class Electricity:
                 surface = self.draw_wire(y_coord_set, "y")
                 self.canvas.blit(surface, (0, 0))
                 
+        if self.cursor_state == "inserting_cell":
+            cell_img = cell
+            if self.orientation != 0:
+                cell_img = pygame.transform.rotate(cell, -90 * self.orientation)
+           
+
+            if self.orientation % 2 == 0:
+                self.canvas.blit(cell_img, (self.x_outline + (self.square_width// 2), self.y_outline))
+            elif self.orientation % 2 == 1:
+                self.canvas.blit(cell_img, (self.x_outline, self.y_outline + (self.square_width //2)))
+
 
         if self.cursor_state == "inserting_resistor":
             resistor = resistor_img
