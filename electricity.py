@@ -1,6 +1,12 @@
 import pygame
+from PySpice.Probe.Plot import plot
+from PySpice.Spice.Netlist import Circuit
+from PySpice.Spice.Parser import SpiceParser
+from PySpice.Spice.Library import SpiceLibrary
+from PySpice.Unit import *
+from PySpice.Logging.Logging import setup_logging
 
-#loading every wire type.
+setup_logging()#loading every wire type.
 vertical_wire = pygame.image.load("utilities/vertical_wire.png")
 horizontal_wire = pygame.image.load("utilities/horizontal_wire.png")
 cell = pygame.image.load("utilities/cell.png")
@@ -472,10 +478,27 @@ class Electricity:
         netlist = ".title Generated Netlist\n"
         for component in components:
             netlist += component + "\n"
+        netlist += ".op\n"
         netlist += ".end"
 
-        print(netlist)
+        f = open("demo_file.txt", "w")
+        f.write(netlist)
+        f.close()
+        parser = SpiceParser("demo_file.txt")
+        circuit = parser.build_circuit()
+        
+        simulator = circuit.simulator()
+        analysis = simulator.operating_point()
+        
+            # Extract and print all node voltages
+        print("DC Node Voltages:")
+        for node in analysis.nodes.values():
+            print(f'{str(node):>5}: {float(node):>6} V')
 
+# Extract and print all branch currents
+        print("\nDC Branch Currents:")
+        for branch in analysis.branches.values():
+            print(f'{str(branch):>5}: {float(branch):>6} A')
 
     #updating the container.
     def update_container(self):

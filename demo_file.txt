@@ -1,0 +1,5 @@
+.title Generated Netlist
+V1 N1 0 DC 5
+R2 N1 0 1k
+.op
+.end
